@@ -13,7 +13,7 @@ beanstalker.vm = {
         beanstalker.vm.JobBuried = m.prop();
         beanstalker.vm.JobDelayed = m.prop();
         beanstalker.vm.JobReady = m.prop();
-        beanstalker.vm.SecondsUntilRefresh = m.prop(10);
+        beanstalker.vm.SecondsUntilRefresh = m.prop(5);
         beanstalker.vm.ServerAddress = m.prop();
         beanstalker.vm.Stats = m.prop({});
         beanstalker.vm.Tubes = m.prop([]);
@@ -34,7 +34,7 @@ beanstalker.vm = {
                 beanstalker.vm.JobReady(data.jobReady);                
             }
         }).done(function() {
-            beanstalker.vm.SecondsUntilRefresh(10);
+            beanstalker.vm.SecondsUntilRefresh(5);
             m.endComputation();
         });
     },
@@ -57,7 +57,6 @@ beanstalker.vm = {
                 beanstalker.vm.updateInfo();
             }
         });
-        console.log(job);
     },
     delete: function(job) {
         $.ajax({
@@ -68,7 +67,6 @@ beanstalker.vm = {
                 beanstalker.vm.updateInfo();
             }
         });
-        console.log(job);
     }
 };
 
@@ -117,7 +115,7 @@ beanstalker.viewTubeButtons = function() {
                 }}, [
                     m('i.glyphicon.glyphicon-play'),
                     ' Resume'
-                ])
+                ]);
             }
         }(),
         m('.btn-group', [
@@ -173,7 +171,7 @@ beanstalker.viewTubeStats = function() {
 
 beanstalker.viewJobStats = function(job) {
     return m('.table-responsive', [
-        m('table.table.table-bordered.table-striped.table-centered', [
+        m('table.table.table-bordered.table-striped', [
             m('thead', [
                 m('tr', [
                     Object.keys(job.stats).map(function(key, index) {
@@ -193,6 +191,16 @@ beanstalker.viewJobStats = function(job) {
 }
 
 beanstalker.viewJobToolbar = function(job) {
+    return [
+        m('.btn-toolbar', [
+            m('button.btn.btn-danger', {onclick: function() {
+                beanstalker.vm.delete(job);
+            }}, 'Delete')
+        ])
+    ];
+}
+
+beanstalker.viewJobKickToolbar = function(job) {
     return [
         m('.btn-toolbar', [
             m('button.btn.btn-default', {onclick: function() {
@@ -221,10 +229,10 @@ beanstalker.viewPeekJobs = function() {
                     if (beanstalker.vm.JobBuried()) {
                         return [
                             beanstalker.viewJob(beanstalker.vm.JobBuried()),
-                            beanstalker.viewJobToolbar(beanstalker.vm.JobBuried())
+                            beanstalker.viewJobKickToolbar(beanstalker.vm.JobBuried())
                         ];
                     } else {
-                        return m('p', 'No buried jobs.')
+                        return m('p', 'No buried jobs.');
                     }
                 }()
             ])
@@ -236,10 +244,10 @@ beanstalker.viewPeekJobs = function() {
                     if (beanstalker.vm.JobDelayed()) {
                         return [
                             beanstalker.viewJob(beanstalker.vm.JobDelayed()),
-                            beanstalker.viewJobToolbar(beanstalker.vm.JobDelayed())
+                            beanstalker.viewJobKickToolbar(beanstalker.vm.JobDelayed())
                         ];
                     } else {
-                        return m('p', 'No delayed jobs.')
+                        return m('p', 'No delayed jobs.');
                     }
                 }()
             ])
@@ -249,9 +257,12 @@ beanstalker.viewPeekJobs = function() {
             m('.panel-body', [
                 function() {
                     if (beanstalker.vm.JobReady()) {
-                        return beanstalker.viewJob(beanstalker.vm.JobReady())
+                        return [
+                            beanstalker.viewJob(beanstalker.vm.JobReady()),
+                            beanstalker.viewJobToolbar(beanstalker.vm.JobReady())
+                        ];
                     } else {
-                        return m('p', 'No ready jobs.')
+                        return m('p', 'No ready jobs.');
                     }
                 }()
             ])
@@ -281,7 +292,7 @@ beanstalker.view = function() {
                                     beanstalker.viewPeekJobs()
                                 ])
                             ])
-                        ]
+                        ];
                     } else {
                         return m('p', 'Unable to find the beanstalk daemon @ ' + beanstalker.vm.ServerAddress() + '.');
                     }
