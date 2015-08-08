@@ -7,6 +7,7 @@ beanstalker.Job = function(data) {
 
 beanstalker.vm = {
     init: function() {
+        beanstalker.vm.CurrentModal = m.prop();
         beanstalker.vm.CurrentTube = m.prop('default');
         beanstalker.vm.IsServiceListening = m.prop(false);
         beanstalker.vm.IsTubePaused = m.prop(false);
@@ -16,6 +17,7 @@ beanstalker.vm = {
         beanstalker.vm.SecondsUntilRefresh = m.prop(5);
         beanstalker.vm.ServerAddress = m.prop();
         beanstalker.vm.Stats = m.prop({});
+        beanstalker.vm.StatsTube = m.prop({});
         beanstalker.vm.Tubes = m.prop([]);
     },
     updateInfo: function() {
@@ -25,13 +27,14 @@ beanstalker.vm = {
             data: {'tube': beanstalker.vm.CurrentTube()},
             success: function(data) {
                 beanstalker.vm.IsServiceListening(data.isServiceListening);
-                beanstalker.vm.IsTubePaused(data.stats.pause != 0);
-                beanstalker.vm.ServerAddress(data.serverAddress);
-                beanstalker.vm.Stats(data.stats);
-                beanstalker.vm.Tubes(data.tubes);
+                beanstalker.vm.IsTubePaused(data.statsTube.pause != 0);
                 beanstalker.vm.JobBuried(data.jobBuried);
                 beanstalker.vm.JobDelayed(data.jobDelayed);
-                beanstalker.vm.JobReady(data.jobReady);                
+                beanstalker.vm.JobReady(data.jobReady);
+                beanstalker.vm.ServerAddress(data.serverAddress);
+                beanstalker.vm.Stats(data.stats);
+                beanstalker.vm.StatsTube(data.statsTube);
+                beanstalker.vm.Tubes(data.tubes);
             }
         }).done(function() {
             beanstalker.vm.SecondsUntilRefresh(5);
@@ -76,13 +79,22 @@ beanstalker.controller = function() {
 
 beanstalker.viewPageHeader = function() {
     return m('.page-header', [
-        m('h2', ['Beanstalker ', function() {
-            if (beanstalker.vm.IsServiceListening()) {
-                return m('small.text-success', 'Service is running');
-            } else {
-                return m('small.text-danger', 'Service not found');
-            }
-        }()])
+        m('h2', [
+            'Beanstalker ',
+            function() {
+                if (beanstalker.vm.IsServiceListening()) {
+                    return m('a[href=#]', {onclick: function() {
+                        beanstalker.vm.CurrentModal('stats');
+                        m.redraw();
+                        $('#modal').modal();
+                    }}, [
+                        m('small.text-success', 'Service is running')
+                    ]);
+                } else {
+                    return m('small.text-danger', 'Service not found');
+                }
+            }()
+        ])
     ]);
 };
 
@@ -155,14 +167,28 @@ beanstalker.viewTubeButtons = function() {
     ]);
 }
 
+beanstalker.viewStats = function() {
+    return m('table.table.table-bordered.table-striped', [
+        m('tbody', function() {
+            var statsTube = beanstalker.vm.Stats();
+            return Object.keys(statsTube).map(function(key, index) {
+                return m('tr', [
+                    m('th', key),
+                    m('td', statsTube[key])
+                ]);
+            });
+        }())
+    ]);
+}
+
 beanstalker.viewTubeStats = function() {
     return m('table.table.table-bordered.table-striped', [
         m('tbody', function() {
-            var stats = beanstalker.vm.Stats();
-            return Object.keys(stats).map(function(key, index) {
+            var statsTube = beanstalker.vm.StatsTube();
+            return Object.keys(statsTube).map(function(key, index) {
                 return m('tr', [
                     m('th', key),
-                    m('td', stats[key])
+                    m('td', statsTube[key])
                 ]);
             });
         }())
@@ -222,7 +248,13 @@ beanstalker.viewJob = function(job) {
 
 beanstalker.viewPeekJobs = function() {
     return [
-        m('.panel.panel-default', [
+        m('.panel', {class: function() {
+                if (beanstalker.vm.JobBuried()) {
+                    return 'panel-danger';
+                } else {
+                    return 'panel-default';
+                }
+            }()}, [
             m('.panel-heading', 'Buried'),
             m('.panel-body', [
                 function() {
@@ -270,6 +302,24 @@ beanstalker.viewPeekJobs = function() {
     ];
 }
 
+beanstalker.viewModalStats = function(name) {
+    return m('#modal.modal.fade', [
+        m('.modal-dialog', [
+            m('.modal-content', [
+                m('.modal-header', [
+                    m('h4', 'Service stats')
+                ]),
+                m('.modal-body', [
+                    beanstalker.viewStats()
+                ]),
+                m('.modal-footer', [
+                    m('button.btn.btn-default[data-dismiss=modal]', 'Close')
+                ])
+            ])
+        ])
+    ]);
+}
+
 beanstalker.view = function() {
     return m('html', [
         m('body', [
@@ -280,13 +330,13 @@ beanstalker.view = function() {
                         return [
                             beanstalker.viewNavTubes(),
                             m('.row', [
-                                m('.col-md-4', [
+                                m('.col-sm-4', [
                                     m('h4', 'Tube'),
                                     m('hr'),
                                     beanstalker.viewTubeButtons(),
                                     beanstalker.viewTubeStats()
                                 ]),
-                                m('.col-md-8', [
+                                m('.col-sm-8', [
                                     m('h4', 'Peek'),
                                     m('hr'),
                                     beanstalker.viewPeekJobs()
@@ -294,10 +344,15 @@ beanstalker.view = function() {
                             ])
                         ];
                     } else {
-                        return m('p', 'Unable to find the beanstalk daemon @ ' + beanstalker.vm.ServerAddress() + '.');
+                        return m('p', 'Unable to find the beanstalk daemon @ ' + beanstalker.vm.ServerAddress());
                     }
                 }()
-            ])
+            ]),
+            function() {
+                if (beanstalker.vm.CurrentModal() == 'stats') {
+                    return beanstalker.viewModalStats();
+                }
+            }()
         ])
     ]);
 };

@@ -28,37 +28,40 @@ $app->get('/api/info', function($req, $res) use($pheanstalk, $config) {
                 
     try {
         $isServiceListening = $pheanstalk->getConnection()->isServiceListening();
+
         try {
             $job = $pheanstalk->peekBuried($tube);
-            $stats = $pheanstalk->statsJob($job);
-            $jobBuried = ['data' => $job->getData(), 'stats' => $stats];
+            $statsJob = $pheanstalk->statsJob($job);
+            $jobBuried = ['data' => $job->getData(), 'stats' => $statsJob];
         } catch (\Pheanstalk\Exception\ServerException $e) {
             $jobBuried = null;
         }
         
         try {
             $job = $pheanstalk->peekDelayed($tube);
-            $stats = $pheanstalk->statsJob($job);
-            $jobDelayed = ['data' => $job->getData(), 'stats' => $stats];
+            $statsJob = $pheanstalk->statsJob($job);
+            $jobDelayed = ['data' => $job->getData(), 'stats' => $statsJob];
         } catch (\Pheanstalk\Exception\ServerException $e) {
             $jobDelayed = null;
         }
         
         try {
             $job = $pheanstalk->peekReady($tube);
-            $stats = $pheanstalk->statsJob($job);
-            $jobReady = ['data' => $job->getData(), 'stats' => $stats];
+            $statsJob = $pheanstalk->statsJob($job);
+            $jobReady = ['data' => $job->getData(), 'stats' => $statsJob];
         } catch (\Pheanstalk\Exception\ServerException $e) {
             $jobReady = null;
         }
         
-        $stats = $pheanstalk->statsTube($tube)->getArrayCopy();
+        $statsTube = $pheanstalk->statsTube($tube)->getArrayCopy();
+        $stats = $pheanstalk->stats()->getArrayCopy();
         $tubes = $pheanstalk->listTubes();
     } catch (\Pheanstalk\Exception\ConnectionException $e) {
         $isServiceListening = false;
         $jobBuried = null;
         $jobDelayed = null;
         $jobReady = null;
+        $statsTube = [];
         $stats = [];
         $tubes = [];
     }
@@ -70,6 +73,7 @@ $app->get('/api/info', function($req, $res) use($pheanstalk, $config) {
         'jobDelayed' => $jobDelayed,
         'jobReady' => $jobReady,
         'serverAddress' => $config['beanstalk_server'],
+        'statsTube' => $statsTube,
         'stats' => $stats,
         'tubes' => $tubes
     ]));
