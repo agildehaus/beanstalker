@@ -1,53 +1,28 @@
-var beanstalker = {};
+var App = {};
+App.views = {};
 
-beanstalker.Job = function(data) {
-    this.id = m.prop(data.id);
-    this.data = m.prop(data.data);
-};
-
-beanstalker.vm = {
+App.vm = {
     init: function() {
-        beanstalker.vm.CurrentModal = m.prop();
-        beanstalker.vm.CurrentTube = m.prop('default');
-        beanstalker.vm.IsServiceListening = m.prop(false);
-        beanstalker.vm.IsTubePaused = m.prop(false);
-        beanstalker.vm.JobBuried = m.prop();
-        beanstalker.vm.JobDelayed = m.prop();
-        beanstalker.vm.JobReady = m.prop();
-        beanstalker.vm.SecondsUntilRefresh = m.prop(5);
-        beanstalker.vm.ServerAddress = m.prop();
-        beanstalker.vm.Stats = m.prop({});
-        beanstalker.vm.StatsTube = m.prop({});
-        beanstalker.vm.Tubes = m.prop([]);
+        App.vm.CurrentModal = m.prop();
+        App.vm.CurrentTube = m.prop('default');
+        App.vm.IsServiceListening = m.prop(false);
+        App.vm.IsTubePaused = m.prop(false);
+        App.vm.JobBuried = m.prop();
+        App.vm.JobDelayed = m.prop();
+        App.vm.JobReady = m.prop();
+        App.vm.SecondsUntilRefresh = m.prop(5);
+        App.vm.ServerAddress = m.prop();
+        App.vm.Stats = m.prop({});
+        App.vm.StatsTube = m.prop({});
+        App.vm.Tubes = m.prop([]);
     },
-    updateInfo: function() {
-        m.startComputation();
-        $.ajax({
-            url: 'api/info',
-            data: {'tube': beanstalker.vm.CurrentTube()},
-            success: function(data) {
-                beanstalker.vm.IsServiceListening(data.isServiceListening);
-                beanstalker.vm.IsTubePaused(data.statsTube.pause != 0);
-                beanstalker.vm.JobBuried(data.jobBuried);
-                beanstalker.vm.JobDelayed(data.jobDelayed);
-                beanstalker.vm.JobReady(data.jobReady);
-                beanstalker.vm.ServerAddress(data.serverAddress);
-                beanstalker.vm.Stats(data.stats);
-                beanstalker.vm.StatsTube(data.statsTube);
-                beanstalker.vm.Tubes(data.tubes);
-            }
-        }).done(function() {
-            beanstalker.vm.SecondsUntilRefresh(5);
-            m.endComputation();
-        });
-    },
-    pause: function(duration) {
+    delete: function(job) {
         $.ajax({
             method: 'POST',
-            url: 'cmd/pause',
-            data: {'tube': beanstalker.vm.CurrentTube(), 'duration': duration},
+            url: 'cmd/delete',
+            data: {'job_id': job.stats.id},
             success: function() {
-                beanstalker.vm.updateInfo();
+                App.vm.updateInfo();
             }
         });
     },
@@ -57,34 +32,149 @@ beanstalker.vm = {
             url: 'cmd/kick',
             data: {'job_id': job.stats.id},
             success: function() {
-                beanstalker.vm.updateInfo();
+                App.vm.updateInfo();
             }
         });
     },
-    delete: function(job) {
+    pause: function(duration) {
         $.ajax({
             method: 'POST',
-            url: 'cmd/delete',
-            data: {'job_id': job.stats.id},
+            url: 'cmd/pause',
+            data: {'tube': App.vm.CurrentTube(), 'duration': duration},
             success: function() {
-                beanstalker.vm.updateInfo();
+                App.vm.updateInfo();
             }
+        });
+    },
+    updateInfo: function() {
+        m.startComputation();
+        $.ajax({
+            url: 'api/info',
+            data: {'tube': App.vm.CurrentTube()},
+            success: function(data) {
+                App.vm.IsServiceListening(data.isServiceListening);
+                App.vm.IsTubePaused(data.statsTube.pause != 0);
+                App.vm.JobBuried(data.jobBuried);
+                App.vm.JobDelayed(data.jobDelayed);
+                App.vm.JobReady(data.jobReady);
+                App.vm.ServerAddress(data.serverAddress);
+                App.vm.Stats(data.stats);
+                App.vm.StatsTube(data.statsTube);
+                App.vm.Tubes(data.tubes);
+            }
+        }).done(function() {
+            App.vm.SecondsUntilRefresh(5);
+            m.endComputation();
         });
     }
 };
 
-beanstalker.controller = function() {
-    beanstalker.vm.init();
+App.controller = function() {
+    App.vm.init();
 };
 
-beanstalker.viewPageHeader = function() {
+App.views.ButtonsTube = function() {
+    return m('.btn-toolbar', [
+        m('button.btn.btn-default', {onclick: function() {
+            App.vm.updateInfo();
+        }}, [
+            m('i.glyphicon.glyphicon-refresh')
+        ]),
+        function() {
+            if (App.vm.IsTubePaused()) {
+                return m('button.btn.btn-default', {onclick: function() {
+                    App.vm.pause(0);
+                }}, [
+                    m('i.glyphicon.glyphicon-play'),
+                    ' Resume'
+                ]);
+            }
+        }(),
+        m('.btn-group', [
+            m('button.btn.btn-default.dropdown-toggle[type=button][data-toggle=dropdown]', [
+                m('i.glyphicon.glyphicon-pause'),
+                ' Pause ',
+                m('span.caret')
+            ]),
+            m('ul.dropdown-menu', [
+                m('li', [
+                    m('a[href=#]', {onclick: function() {
+                        App.vm.pause(60);
+                    }}, '1 minute')
+                ]),
+                m('li', [
+                    m('a[href=#]', {onclick: function() {
+                        App.vm.pause(300);
+                    }}, '5 minutes')
+                ]),
+                m('li', [
+                    m('a[href=#]', {onclick: function() {
+                        App.vm.pause(600);
+                    }}, '10 minutes')
+                ]),
+                m('li', [
+                    m('a[href=#]', {onclick: function() {
+                        App.vm.pause(1800);
+                    }}, '30 minutes')
+                ]),
+                m('li', [
+                    m('a[href=#]', {onclick: function() {
+                        App.vm.pause(3600);
+                    }}, '1 hour')
+                ])
+            ])
+        ])
+    ]);
+}
+
+App.views.Job = function(job) {
+    return [
+        App.views.StatsJob(job),
+        m('pre.pre-scrollable', job.data)
+    ];
+}
+
+App.views.ModalStats = function(name) {
+    return m('#modal.modal.fade', [
+        m('.modal-dialog', [
+            m('.modal-content', [
+                m('.modal-header', [
+                    m('h4', 'Service stats')
+                ]),
+                m('.modal-body', [
+                    App.views.Stats()
+                ]),
+                m('.modal-footer', [
+                    m('button.btn.btn-default[data-dismiss=modal]', 'Close')
+                ])
+            ])
+        ])
+    ]);
+}
+
+App.views.NavTubes = function() {
+    return m('ul.nav.nav-tabs', [
+        App.vm.Tubes().map(function(tube, index) {
+            return m(function() {
+                return tube == App.vm.CurrentTube() ? 'li.active' : 'li';
+            }(), [
+                m('a[href=javascript:void(0)]', {onclick: function() {
+                    App.vm.CurrentTube(tube);
+                    App.vm.updateInfo();
+                }}, tube)
+            ]);
+        })
+    ]);
+}
+
+App.views.PageHeader = function() {
     return m('.page-header', [
         m('h2', [
             'Beanstalker ',
             function() {
-                if (beanstalker.vm.IsServiceListening()) {
+                if (App.vm.IsServiceListening()) {
                     return m('a[href=#]', {onclick: function() {
-                        beanstalker.vm.CurrentModal('stats');
+                        App.vm.CurrentModal('stats');
                         m.redraw();
                         $('#modal').modal();
                     }}, [
@@ -96,106 +186,65 @@ beanstalker.viewPageHeader = function() {
             }()
         ])
     ]);
-};
-
-beanstalker.viewNavTubes = function() {
-    return m('ul.nav.nav-tabs', [
-        beanstalker.vm.Tubes().map(function(tube, index) {
-            return m(function() {
-                return tube == beanstalker.vm.CurrentTube() ? 'li.active' : 'li';
-            }(), [
-                m('a[href=javascript:void(0)]', {onclick: function() {
-                    beanstalker.vm.CurrentTube(tube);
-                    beanstalker.vm.updateInfo();
-                }}, tube)
-            ]);
-        })
-    ]);
 }
 
-beanstalker.viewTubeButtons = function() {
-    return m('.btn-toolbar', [
-        m('button.btn.btn-default', {onclick: function() {
-            beanstalker.vm.updateInfo();
-        }}, [
-            m('i.glyphicon.glyphicon-refresh')
+App.views.PeekJobs = function() {
+    return [
+        m('.panel', {class: function() {
+                if (App.vm.JobBuried()) {
+                    return 'panel-danger';
+                } else {
+                    return 'panel-default';
+                }
+            }()}, [
+            m('.panel-heading', 'Buried'),
+            m('.panel-body', [
+                function() {
+                    if (App.vm.JobBuried()) {
+                        return [
+                            App.views.Job(App.vm.JobBuried()),
+                            App.views.ToolbarJobKick(App.vm.JobBuried())
+                        ];
+                    } else {
+                        return m('p', 'No buried jobs.');
+                    }
+                }()
+            ])
         ]),
-        function() {
-            if (beanstalker.vm.IsTubePaused()) {
-                return m('button.btn.btn-default', {onclick: function() {
-                    beanstalker.vm.pause(0);
-                }}, [
-                    m('i.glyphicon.glyphicon-play'),
-                    ' Resume'
-                ]);
-            }
-        }(),
-        m('.btn-group', [
-            m('button.btn.btn-default.dropdown-toggle[type=button][data-toggle=dropdown]', {onclick: beanstalker.vm.pause}, [
-                m('i.glyphicon.glyphicon-pause'),
-                ' Pause ',
-                m('span.caret')
-            ]),
-            m('ul.dropdown-menu', [
-                m('li', [
-                    m('a[href=#]', {onclick: function() {
-                        beanstalker.vm.pause(60);
-                    }}, '1 minute')
-                ]),
-                m('li', [
-                    m('a[href=#]', {onclick: function() {
-                        beanstalker.vm.pause(300);
-                    }}, '5 minutes')
-                ]),
-                m('li', [
-                    m('a[href=#]', {onclick: function() {
-                        beanstalker.vm.pause(600);
-                    }}, '10 minutes')
-                ]),
-                m('li', [
-                    m('a[href=#]', {onclick: function() {
-                        beanstalker.vm.pause(1800);
-                    }}, '30 minutes')
-                ]),
-                m('li', [
-                    m('a[href=#]', {onclick: function() {
-                        beanstalker.vm.pause(3600);
-                    }}, '1 hour')
-                ])
+        m('.panel.panel-default', [
+            m('.panel-heading', 'Delayed'),
+            m('.panel-body', [
+                function() {
+                    if (App.vm.JobDelayed()) {
+                        return [
+                            App.views.Job(App.vm.JobDelayed()),
+                            App.views.ToolbarJobKick(App.vm.JobDelayed())
+                        ];
+                    } else {
+                        return m('p', 'No delayed jobs.');
+                    }
+                }()
+            ])
+        ]),
+        m('.panel.panel-default', [
+            m('.panel-heading', 'Ready'),
+            m('.panel-body', [
+                function() {
+                    if (App.vm.JobReady()) {
+                        return [
+                            App.views.Job(App.vm.JobReady()),
+                            App.views.ToolbarJob(App.vm.JobReady())
+                        ];
+                    } else {
+                        return m('p', 'No ready jobs.');
+                    }
+                }()
             ])
         ])
-    ]);
+    ];
 }
 
-beanstalker.viewStats = function() {
-    return m('table.table.table-bordered.table-striped', [
-        m('tbody', function() {
-            var statsTube = beanstalker.vm.Stats();
-            return Object.keys(statsTube).map(function(key, index) {
-                return m('tr', [
-                    m('th', key),
-                    m('td', statsTube[key])
-                ]);
-            });
-        }())
-    ]);
-}
-
-beanstalker.viewTubeStats = function() {
-    return m('table.table.table-bordered.table-striped', [
-        m('tbody', function() {
-            var statsTube = beanstalker.vm.StatsTube();
-            return Object.keys(statsTube).map(function(key, index) {
-                return m('tr', [
-                    m('th', key),
-                    m('td', statsTube[key])
-                ]);
-            });
-        }())
-    ]);
-}
-
-beanstalker.viewJobStats = function(job) {
+App.views.StatsJob = function(job) {
     return m('.table-responsive', [
         m('table.table.table-bordered.table-striped', [
             m('thead', [
@@ -216,158 +265,104 @@ beanstalker.viewJobStats = function(job) {
     ]);
 }
 
-beanstalker.viewJobToolbar = function(job) {
-    return [
-        m('.btn-toolbar', [
-            m('button.btn.btn-danger', {onclick: function() {
-                beanstalker.vm.delete(job);
-            }}, 'Delete')
-        ])
-    ];
-}
-
-beanstalker.viewJobKickToolbar = function(job) {
-    return [
-        m('.btn-toolbar', [
-            m('button.btn.btn-default', {onclick: function() {
-                beanstalker.vm.kick(job);
-            }}, 'Kick'),
-            m('button.btn.btn-danger', {onclick: function() {
-                beanstalker.vm.delete(job);
-            }}, 'Delete')
-        ])
-    ];
-}
-
-beanstalker.viewJob = function(job) {
-    return [
-        beanstalker.viewJobStats(job),
-        m('pre.pre-scrollable', job.data)
-    ];
-}
-
-beanstalker.viewPeekJobs = function() {
-    return [
-        m('.panel', {class: function() {
-                if (beanstalker.vm.JobBuried()) {
-                    return 'panel-danger';
-                } else {
-                    return 'panel-default';
-                }
-            }()}, [
-            m('.panel-heading', 'Buried'),
-            m('.panel-body', [
-                function() {
-                    if (beanstalker.vm.JobBuried()) {
-                        return [
-                            beanstalker.viewJob(beanstalker.vm.JobBuried()),
-                            beanstalker.viewJobKickToolbar(beanstalker.vm.JobBuried())
-                        ];
-                    } else {
-                        return m('p', 'No buried jobs.');
-                    }
-                }()
-            ])
-        ]),
-        m('.panel.panel-default', [
-            m('.panel-heading', 'Delayed'),
-            m('.panel-body', [
-                function() {
-                    if (beanstalker.vm.JobDelayed()) {
-                        return [
-                            beanstalker.viewJob(beanstalker.vm.JobDelayed()),
-                            beanstalker.viewJobKickToolbar(beanstalker.vm.JobDelayed())
-                        ];
-                    } else {
-                        return m('p', 'No delayed jobs.');
-                    }
-                }()
-            ])
-        ]),
-        m('.panel.panel-default', [
-            m('.panel-heading', 'Ready'),
-            m('.panel-body', [
-                function() {
-                    if (beanstalker.vm.JobReady()) {
-                        return [
-                            beanstalker.viewJob(beanstalker.vm.JobReady()),
-                            beanstalker.viewJobToolbar(beanstalker.vm.JobReady())
-                        ];
-                    } else {
-                        return m('p', 'No ready jobs.');
-                    }
-                }()
-            ])
-        ])
-    ];
-}
-
-beanstalker.viewModalStats = function(name) {
-    return m('#modal.modal.fade', [
-        m('.modal-dialog', [
-            m('.modal-content', [
-                m('.modal-header', [
-                    m('h4', 'Service stats')
-                ]),
-                m('.modal-body', [
-                    beanstalker.viewStats()
-                ]),
-                m('.modal-footer', [
-                    m('button.btn.btn-default[data-dismiss=modal]', 'Close')
-                ])
-            ])
-        ])
+App.views.Stats = function() {
+    return m('table.table.table-bordered.table-striped', [
+        m('tbody', function() {
+            var statsTube = App.vm.Stats();
+            return Object.keys(statsTube).map(function(key, index) {
+                return m('tr', [
+                    m('th', key),
+                    m('td', statsTube[key])
+                ]);
+            });
+        }())
     ]);
 }
 
-beanstalker.view = function() {
+App.views.StatsTube = function() {
+    return m('table.table.table-bordered.table-striped', [
+        m('tbody', function() {
+            var statsTube = App.vm.StatsTube();
+            return Object.keys(statsTube).map(function(key, index) {
+                return m('tr', [
+                    m('th', key),
+                    m('td', statsTube[key])
+                ]);
+            });
+        }())
+    ]);
+}
+
+App.views.ToolbarJob = function(job) {
+    return [
+        m('.btn-toolbar', [
+            m('button.btn.btn-danger', {onclick: function() {
+                App.vm.delete(job);
+            }}, 'Delete')
+        ])
+    ];
+}
+
+App.views.ToolbarJobKick = function(job) {
+    return [
+        m('.btn-toolbar', [
+            m('button.btn.btn-default', {onclick: function() {
+                App.vm.kick(job);
+            }}, 'Kick'),
+            m('button.btn.btn-danger', {onclick: function() {
+                App.vm.delete(job);
+            }}, 'Delete')
+        ])
+    ];
+}
+
+App.view = function() {
     return m('html', [
         m('body', [
             m('.container', [
-                beanstalker.viewPageHeader(),
+                App.views.PageHeader(),
                 function() {
-                    if (beanstalker.vm.IsServiceListening()) {
+                    if (App.vm.IsServiceListening()) {
                         return [
-                            beanstalker.viewNavTubes(),
+                            App.views.NavTubes(),
                             m('.row', [
                                 m('.col-sm-4', [
                                     m('h4', 'Tube'),
                                     m('hr'),
-                                    beanstalker.viewTubeButtons(),
-                                    beanstalker.viewTubeStats()
+                                    App.views.ButtonsTube(),
+                                    App.views.StatsTube()
                                 ]),
                                 m('.col-sm-8', [
                                     m('h4', 'Peek'),
                                     m('hr'),
-                                    beanstalker.viewPeekJobs()
+                                    App.views.PeekJobs()
                                 ])
                             ])
                         ];
                     } else {
-                        return m('p', 'Unable to find the beanstalk daemon @ ' + beanstalker.vm.ServerAddress());
+                        return m('p', 'Unable to find the beanstalk daemon @ ' + App.vm.ServerAddress());
                     }
                 }()
             ]),
             function() {
-                if (beanstalker.vm.CurrentModal() == 'stats') {
-                    return beanstalker.viewModalStats();
+                if (App.vm.CurrentModal() == 'stats') {
+                    return App.views.ModalStats();
                 }
             }()
         ])
     ]);
 };
 
-m.mount(document.body, beanstalker);
-
 $('document').ready(function() {
-    beanstalker.vm.updateInfo();
+    m.mount(document.body, App);
+    App.vm.updateInfo();
     
     setInterval(function() {
-        var seconds = beanstalker.vm.SecondsUntilRefresh();
+        var seconds = App.vm.SecondsUntilRefresh();
         if (seconds == 0) {
-            beanstalker.vm.updateInfo();
+            App.vm.updateInfo();
         } else {
-            beanstalker.vm.SecondsUntilRefresh(seconds - 1);
+            App.vm.SecondsUntilRefresh(seconds - 1);
         }
     }, 1000);
 });
