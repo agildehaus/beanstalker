@@ -74,55 +74,43 @@ App.controller = function() {
 };
 
 App.views.ButtonsTube = function() {
-    return m('.btn-toolbar', [
-        m('button.btn.btn-default', {onclick: function() {
+    return m('.mb-2', [
+        m('button.btn.btn-outline-secondary.mr-1', {onclick: function() {
             App.vm.updateInfo();
         }}, [
-            m('i.glyphicon.glyphicon-refresh')
+            m('i.fas.fa-sync')
         ]),
         function() {
             if (App.vm.IsTubePaused()) {
-                return m('button.btn.btn-default', {onclick: function() {
+                return m('button.btn.btn-outline-secondary.mr-1', {onclick: function() {
                     App.vm.pause(0);
                 }}, [
-                    m('i.glyphicon.glyphicon-play'),
+                    m('i.fas.fa-play'),
                     ' Resume'
                 ]);
             }
         }(),
-        m('.btn-group', [
-            m('button.btn.btn-default.dropdown-toggle[type=button][data-toggle=dropdown]', [
-                m('i.glyphicon.glyphicon-pause'),
-                ' Pause ',
-                m('span.caret')
-            ]),
-            m('ul.dropdown-menu', [
-                m('li', [
-                    m('a[href=#]', {onclick: function() {
-                        App.vm.pause(60);
-                    }}, '1 minute')
-                ]),
-                m('li', [
-                    m('a[href=#]', {onclick: function() {
-                        App.vm.pause(300);
-                    }}, '5 minutes')
-                ]),
-                m('li', [
-                    m('a[href=#]', {onclick: function() {
-                        App.vm.pause(600);
-                    }}, '10 minutes')
-                ]),
-                m('li', [
-                    m('a[href=#]', {onclick: function() {
-                        App.vm.pause(1800);
-                    }}, '30 minutes')
-                ]),
-                m('li', [
-                    m('a[href=#]', {onclick: function() {
-                        App.vm.pause(3600);
-                    }}, '1 hour')
-                ])
-            ])
+        m('button.btn.btn-outline-secondary.dropdown-toggle[type=button][data-toggle=dropdown]', [
+            m('i.fas.fa-pause'),
+            ' Pause ',
+            m('span.caret')
+        ]),
+        m('.dropdown-menu', [
+            m('a[href=#].dropdown-item', {onclick: function() {
+                App.vm.pause(60);
+            }}, '1 minute'),
+            m('a[href=#].dropdown-item', {onclick: function() {
+                App.vm.pause(300);
+            }}, '5 minutes'),
+            m('a[href=#].dropdown-item', {onclick: function() {
+                App.vm.pause(600);
+            }}, '10 minutes'),
+            m('a[href=#].dropdown-item', {onclick: function() {
+                App.vm.pause(1800);
+            }}, '30 minutes'),
+            m('a[href=#].dropdown-item', {onclick: function() {
+                App.vm.pause(3600);
+            }}, '1 hour')
         ])
     ]);
 }
@@ -130,7 +118,7 @@ App.views.ButtonsTube = function() {
 App.views.Job = function(job) {
     return [
         App.views.StatsJob(job),
-        m('pre.pre-scrollable', job.data)
+        m('pre', job.data)
     ];
 }
 
@@ -145,7 +133,7 @@ App.views.ModalStats = function(name) {
                     App.views.Stats()
                 ]),
                 m('.modal-footer', [
-                    m('button.btn.btn-default[data-dismiss=modal]', 'Close')
+                    m('button.btn.btn-outline-secondary[data-dismiss=modal]', 'Close')
                 ])
             ])
         ])
@@ -155,50 +143,43 @@ App.views.ModalStats = function(name) {
 App.views.NavTubes = function() {
     return m('ul.nav.nav-tabs', [
         App.vm.Tubes().map(function(tube, index) {
-            return m(function() {
-                return tube == App.vm.CurrentTube() ? 'li.active' : 'li';
-            }(), [
-                m('a[href=javascript:void(0)]', {onclick: function() {
-                    App.vm.CurrentTube(tube);
-                    App.vm.updateInfo();
-                }}, tube)
+            return m('li.nav-item', [
+                m('a[href=javascript:void(0)].nav-link', {
+                    class: function() {
+                        return App.vm.CurrentTube() == tube ? 'active' : '';
+                    }(),
+                    onclick: function() {
+                        App.vm.CurrentTube(tube);
+                        App.vm.updateInfo();
+                    }
+                }, tube)
             ]);
         })
     ]);
 }
 
 App.views.PageHeader = function() {
-    return m('.page-header', [
-        m('h2', [
-            'Beanstalker ',
-            function() {
-                if (App.vm.IsServiceListening()) {
-                    return m('a[href=#]', {onclick: function() {
-                        App.vm.CurrentModal('stats');
-                        m.redraw();
-                        $('#modal').modal();
-                    }}, [
-                        m('small.text-success', 'Service is running')
-                    ]);
-                } else {
-                    return m('small.text-danger', 'Service not found');
-                }
-            }()
-        ])
+    return m('h2.heading', [
+        'Beanstalker ',
+        function() {
+            if (App.vm.IsServiceListening()) {
+                return m('a[href=#]', {onclick: function() {
+                    App.vm.CurrentModal('stats');
+                    m.redraw();
+                    $('#modal').modal();
+                }}, [
+                    m('small.text-success', 'Running')
+                ]);
+            }
+        }()
     ]);
 }
 
 App.views.PeekJobs = function() {
     return [
-        m('.panel', {class: function() {
-                if (App.vm.JobBuried()) {
-                    return 'panel-danger';
-                } else {
-                    return 'panel-default';
-                }
-            }()}, [
-            m('.panel-heading', 'Buried'),
-            m('.panel-body', [
+        m('.card.border-danger.mb-2', [
+            m('.card-header.text-white.bg-danger', 'Buried'),
+            m('.card-body', [
                 function() {
                     if (App.vm.JobBuried()) {
                         return [
@@ -211,9 +192,9 @@ App.views.PeekJobs = function() {
                 }()
             ])
         ]),
-        m('.panel.panel-default', [
-            m('.panel-heading', 'Delayed'),
-            m('.panel-body', [
+        m('.card.mb-2', [
+            m('.card-header', 'Delayed'),
+            m('.card-body', [
                 function() {
                     if (App.vm.JobDelayed()) {
                         return [
@@ -226,9 +207,9 @@ App.views.PeekJobs = function() {
                 }()
             ])
         ]),
-        m('.panel.panel-default', [
-            m('.panel-heading', 'Ready'),
-            m('.panel-body', [
+        m('.card.mb-2', [
+            m('.card-header', 'Ready'),
+            m('.card-body', [
                 function() {
                     if (App.vm.JobReady()) {
                         return [
@@ -245,7 +226,7 @@ App.views.PeekJobs = function() {
 }
 
 App.views.StatsJob = function(job) {
-    return m('.table-responsive', [
+    return m('.table-responsive.mb-2', [
         m('table.table.table-bordered.table-striped', [
             m('thead', [
                 m('tr', [
@@ -280,7 +261,7 @@ App.views.Stats = function() {
 }
 
 App.views.StatsTube = function() {
-    return m('table.table.table-bordered.table-striped', [
+    return m('table.table.table-bordered.table-striped.table-sm', [
         m('tbody', function() {
             var statsTube = App.vm.StatsTube();
             return Object.keys(statsTube).map(function(key, index) {
@@ -295,23 +276,23 @@ App.views.StatsTube = function() {
 
 App.views.ToolbarJob = function(job) {
     return [
-        m('.btn-toolbar', [
-            m('button.btn.btn-danger', {onclick: function() {
-                App.vm.delete(job);
-            }}, 'Delete')
+        m('button.btn.btn-danger', {onclick: function() {
+            App.vm.delete(job);
+        }}, [
+            m('i.fas fa-trash')
         ])
     ];
 }
 
 App.views.ToolbarJobKick = function(job) {
     return [
-        m('.btn-toolbar', [
-            m('button.btn.btn-default', {onclick: function() {
-                App.vm.kick(job);
-            }}, 'Kick'),
-            m('button.btn.btn-danger', {onclick: function() {
-                App.vm.delete(job);
-            }}, 'Delete')
+        m('button.btn.btn-outline-secondary.mr-1', {onclick: function() {
+            App.vm.kick(job);
+        }}, 'Kick'),
+        m('button.btn.btn-outline-danger', {onclick: function() {
+            App.vm.delete(job);
+        }}, [
+                m('i.fas fa-trash')
         ])
     ];
 }
@@ -327,14 +308,12 @@ App.view = function() {
                             App.views.NavTubes(),
                             m('.row', [
                                 m('.col-sm-4', [
-                                    m('h4', 'Tube'),
-                                    m('hr'),
+                                    m('h4.heading', 'Tube'),
                                     App.views.ButtonsTube(),
                                     App.views.StatsTube()
                                 ]),
                                 m('.col-sm-8', [
-                                    m('h4', 'Peek'),
-                                    m('hr'),
+                                    m('h4.heading', 'Peek'),
                                     App.views.PeekJobs()
                                 ])
                             ])
