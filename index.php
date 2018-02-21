@@ -5,17 +5,24 @@ require 'config.php';
 use Respect\Validation\Validator as v;
 use Respect\Validation\Exceptions\NestedValidationExceptionInterface;
 
-$app = new \Slim\App();
+$app = new \Slim\App([
+    'settings' => [
+        'displayErrorDetails' => true
+    ]
+]);
+
 $container = $app->getContainer();
+
+$container['view'] = function($c) {
+    $view = new \Slim\Views\Twig('templates/');
+    
+    $basePath = rtrim(str_ireplace('index.php', '', $c['request']->getUri()->getBasePath()), '/');
+    $view->addExtension(new \Slim\Views\TwigExtension($c['router'], $basePath));
+    
+    return $view;
+};
+
 $pheanstalk = new \Pheanstalk\Pheanstalk($config['beanstalk_server']);
-
-$view = new \Slim\Views\Twig('templates');
-$view->addExtension(new Slim\Views\TwigExtension(
-    $container->get('router'),
-    $container->get('request')->getUri() 
-));
-
-$container->register($view);
 
 $app->get('/', function($req, $res) {
     return $this->view->render($res, 'index.html', [

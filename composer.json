@@ -1,9 +1,9 @@
 {
     "require": {
-        "slim/slim": "^3.0-beta1",
-        "twig/twig": "^1.19",
-        "slim/twig-view": "^1.2",
-        "pda/pheanstalk": "^3.0",
-        "respect/validation": "^0.9.3"
+        "slim/slim": "3.9.2",
+        "twig/twig": "2.4.4",
+        "slim/twig-view": "2.3.0",
+        "pda/pheanstalk": "3.1.0",
+        "respect/validation": "1.1.15"
     }
 }
