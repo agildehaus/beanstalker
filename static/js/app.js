@@ -61,7 +61,6 @@ App.vm = {
             App.vm.tubes = result.tubes;
 
             App.vm.secondsUtilRefresh = 5;
-            m.redraw();
         });
     }
 };
@@ -168,7 +167,6 @@ App.views.PageHeader = function() {
                 return m('a[href=#]', {onclick: function() {
                     App.vm.currentModal = 'stats';
                     App.vm.isModalShown = true;
-                    m.redraw();
                 }}, [
                     m('small.text-success', 'Running')
                 ]);
