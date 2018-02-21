@@ -3,18 +3,18 @@ App.views = {};
 
 App.vm = {
     init: function() {
-        App.vm.CurrentModal = m.prop();
-        App.vm.CurrentTube = m.prop('default');
-        App.vm.IsServiceListening = m.prop(false);
-        App.vm.IsTubePaused = m.prop(false);
-        App.vm.JobBuried = m.prop();
-        App.vm.JobDelayed = m.prop();
-        App.vm.JobReady = m.prop();
-        App.vm.SecondsUntilRefresh = m.prop(5);
-        App.vm.ServerAddress = m.prop();
-        App.vm.Stats = m.prop({});
-        App.vm.StatsTube = m.prop({});
-        App.vm.Tubes = m.prop([]);
+        App.vm.CurrentModal = null;
+        App.vm.CurrentTube = 'default';
+        App.vm.IsServiceListening = false;
+        App.vm.IsTubePaused = false;
+        App.vm.JobBuried = null;
+        App.vm.JobDelayed = null;
+        App.vm.JobReady = null;
+        App.vm.SecondsUntilRefresh = 5;
+        App.vm.ServerAddress = null;
+        App.vm.Stats = {};
+        App.vm.StatsTube = {};
+        App.vm.Tubes = [];
     },
     delete: function(job) {
         $.ajax({
@@ -40,31 +40,30 @@ App.vm = {
         $.ajax({
             method: 'POST',
             url: 'cmd/pause',
-            data: {'tube': App.vm.CurrentTube(), 'duration': duration},
+            data: {'tube': App.vm.CurrentTube, 'duration': duration},
             success: function() {
                 App.vm.updateInfo();
             }
         });
     },
     updateInfo: function() {
-        m.startComputation();
         $.ajax({
             url: 'api/info',
-            data: {'tube': App.vm.CurrentTube()},
+            data: {'tube': App.vm.CurrentTube},
             success: function(data) {
-                App.vm.IsServiceListening(data.isServiceListening);
-                App.vm.IsTubePaused(data.statsTube.pause != 0);
-                App.vm.JobBuried(data.jobBuried);
-                App.vm.JobDelayed(data.jobDelayed);
-                App.vm.JobReady(data.jobReady);
-                App.vm.ServerAddress(data.serverAddress);
-                App.vm.Stats(data.stats);
-                App.vm.StatsTube(data.statsTube);
-                App.vm.Tubes(data.tubes);
+                App.vm.IsServiceListening = data.isServiceListening;
+                App.vm.IsTubePaused = data.statsTube.pause != 0;
+                App.vm.JobBuried = data.jobBuried;
+                App.vm.JobDelayed = data.jobDelayed;
+                App.vm.JobReady = data.jobReady;
+                App.vm.ServerAddress = data.serverAddress;
+                App.vm.Stats = data.stats;
+                App.vm.StatsTube = data.statsTube;
+                App.vm.Tubes = data.tubes;
             }
         }).done(function() {
-            App.vm.SecondsUntilRefresh(5);
-            m.endComputation();
+            App.vm.SecondsUntilRefresh = 5;
+            m.redraw();
         });
     }
 };
@@ -81,7 +80,7 @@ App.views.ButtonsTube = function() {
             m('i.fas.fa-sync')
         ]),
         function() {
-            if (App.vm.IsTubePaused()) {
+            if (App.vm.IsTubePaused) {
                 return m('button.btn.btn-outline-secondary.mr-1', {onclick: function() {
                     App.vm.pause(0);
                 }}, [
@@ -142,14 +141,14 @@ App.views.ModalStats = function(name) {
 
 App.views.NavTubes = function() {
     return m('ul.nav.nav-tabs', [
-        App.vm.Tubes().map(function(tube, index) {
+        App.vm.Tubes.map(function(tube, index) {
             return m('li.nav-item', [
                 m('a[href=javascript:void(0)].nav-link', {
                     class: function() {
-                        return App.vm.CurrentTube() == tube ? 'active' : '';
+                        return App.vm.CurrentTube == tube ? 'active' : '';
                     }(),
                     onclick: function() {
-                        App.vm.CurrentTube(tube);
+                        App.vm.CurrentTube = tube;
                         App.vm.updateInfo();
                     }
                 }, tube)
@@ -162,9 +161,9 @@ App.views.PageHeader = function() {
     return m('h2.heading', [
         'Beanstalker ',
         function() {
-            if (App.vm.IsServiceListening()) {
+            if (App.vm.IsServiceListening) {
                 return m('a[href=#]', {onclick: function() {
-                    App.vm.CurrentModal('stats');
+                    App.vm.CurrentModal = 'stats';
                     m.redraw();
                     $('#modal').modal();
                 }}, [
@@ -181,13 +180,13 @@ App.views.PeekJobs = function() {
             m('.card-header.text-white.bg-danger', 'Buried'),
             m('.card-body', [
                 function() {
-                    if (App.vm.JobBuried()) {
+                    if (App.vm.JobBuried) {
                         return [
-                            App.views.Job(App.vm.JobBuried()),
-                            App.views.ToolbarJobKick(App.vm.JobBuried())
+                            App.views.Job(App.vm.JobBuried),
+                            App.views.ToolbarJobKick(App.vm.JobBuried)
                         ];
                     } else {
-                        return m('p', 'No buried jobs.');
+                        return 'No buried jobs.';
                     }
                 }()
             ])
@@ -196,13 +195,13 @@ App.views.PeekJobs = function() {
             m('.card-header', 'Delayed'),
             m('.card-body', [
                 function() {
-                    if (App.vm.JobDelayed()) {
+                    if (App.vm.JobDelayed) {
                         return [
-                            App.views.Job(App.vm.JobDelayed()),
-                            App.views.ToolbarJobKick(App.vm.JobDelayed())
+                            App.views.Job(App.vm.JobDelayed),
+                            App.views.ToolbarJobKick(App.vm.JobDelayed)
                         ];
                     } else {
-                        return m('p', 'No delayed jobs.');
+                        return 'No delayed jobs.';
                     }
                 }()
             ])
@@ -211,13 +210,13 @@ App.views.PeekJobs = function() {
             m('.card-header', 'Ready'),
             m('.card-body', [
                 function() {
-                    if (App.vm.JobReady()) {
+                    if (App.vm.JobReady) {
                         return [
-                            App.views.Job(App.vm.JobReady()),
-                            App.views.ToolbarJob(App.vm.JobReady())
+                            App.views.Job(App.vm.JobReady),
+                            App.views.ToolbarJob(App.vm.JobReady)
                         ];
                     } else {
-                        return m('p', 'No ready jobs.');
+                        return 'No ready jobs.';
                     }
                 }()
             ])
@@ -249,11 +248,11 @@ App.views.StatsJob = function(job) {
 App.views.Stats = function() {
     return m('table.table.table-bordered.table-striped', [
         m('tbody', function() {
-            var statsTube = App.vm.Stats();
-            return Object.keys(statsTube).map(function(key, index) {
+            var stats = App.vm.Stats;
+            return Object.keys(stats).map(function(key, index) {
                 return m('tr', [
                     m('th', key),
-                    m('td', statsTube[key])
+                    m('td', stats[key])
                 ]);
             });
         }())
@@ -263,7 +262,7 @@ App.views.Stats = function() {
 App.views.StatsTube = function() {
     return m('table.table.table-bordered.table-striped.table-sm', [
         m('tbody', function() {
-            var statsTube = App.vm.StatsTube();
+            var statsTube = App.vm.StatsTube;
             return Object.keys(statsTube).map(function(key, index) {
                 return m('tr', [
                     m('th', key),
@@ -303,7 +302,7 @@ App.view = function() {
             m('.container', [
                 App.views.PageHeader(),
                 function() {
-                    if (App.vm.IsServiceListening()) {
+                    if (App.vm.IsServiceListening) {
                         return [
                             App.views.NavTubes(),
                             m('.row', [
@@ -319,12 +318,12 @@ App.view = function() {
                             ])
                         ];
                     } else {
-                        return m('p', 'Unable to find the beanstalk daemon @ ' + App.vm.ServerAddress());
+                        return m('p', 'Unable to find the beanstalk daemon @ ' + App.vm.ServerAddress);
                     }
                 }()
             ]),
             function() {
-                if (App.vm.CurrentModal() == 'stats') {
+                if (App.vm.CurrentModal == 'stats') {
                     return App.views.ModalStats();
                 }
             }()
@@ -337,11 +336,11 @@ $('document').ready(function() {
     App.vm.updateInfo();
     
     setInterval(function() {
-        var seconds = App.vm.SecondsUntilRefresh();
+        var seconds = App.vm.SecondsUntilRefresh;
         if (seconds == 0) {
             App.vm.updateInfo();
         } else {
-            App.vm.SecondsUntilRefresh(seconds - 1);
+            App.vm.SecondsUntilRefresh = seconds - 1;
         }
     }, 1000);
 });
