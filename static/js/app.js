@@ -142,17 +142,17 @@ App.views.PageHeader = function() {
 
 App.views.PeekJobs = function() {
     return [
-        m('.card.border-danger.mb-2', [
-            m('.card-header.text-white.bg-danger', 'Buried'),
+        m('.card.mb-2', [
+            m('.card-header', 'Ready'),
             m('.card-body', [
                 function() {
-                    if (App.vm.jobBuried) {
+                    if (App.vm.jobReady) {
                         return [
-                            App.views.Job(App.vm.jobBuried),
-                            App.views.ToolbarJobKick(App.vm.jobBuried)
+                            App.views.Job(App.vm.jobReady),
+                            App.views.ToolbarJob(App.vm.jobReady)
                         ];
                     } else {
-                        return 'No buried jobs.';
+                        return 'No ready jobs.';
                     }
                 }()
             ])
@@ -172,17 +172,25 @@ App.views.PeekJobs = function() {
                 }()
             ])
         ]),
-        m('.card.mb-2', [
-            m('.card-header', 'Ready'),
+        m('.card.mb-2', {
+            class: function() {
+                return App.vm.jobBuried ? 'border-danger' : ''
+            }()
+        }, [
+            m('.card-header', {
+                class: function() {
+                    return App.vm.jobBuried ? 'text-white bg-danger' : ''
+                }()
+            }, 'Buried'),
             m('.card-body', [
                 function() {
-                    if (App.vm.jobReady) {
+                    if (App.vm.jobBuried) {
                         return [
-                            App.views.Job(App.vm.jobReady),
-                            App.views.ToolbarJob(App.vm.jobReady)
+                            App.views.Job(App.vm.jobBuried),
+                            App.views.ToolbarJobKick(App.vm.jobBuried)
                         ];
                     } else {
-                        return 'No ready jobs.';
+                        return 'No buried jobs.';
                     }
                 }()
             ])
