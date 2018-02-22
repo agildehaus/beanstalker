@@ -2,9 +2,7 @@ var App = {};
 App.views = {};
 
 App.vm = {
-    currentModal: null,
     currentTube: 'default',
-    isModalShown: false,
     isServiceListening: false,
     isTubePaused: false,
     jobBuried: null,
@@ -12,6 +10,7 @@ App.vm = {
     jobReady: null,
     secondsUntilRefresh: 5,
     serverAddress: null,
+    showStats: false,
     stats: {},
     statsTube: {},
     tubes: [],
@@ -114,65 +113,31 @@ App.views.Job = function(job) {
     ];
 }
 
-App.views.ModalStats = function(name) {
-    return m('.modal.fade', {
-        style: {display: 'block', overflow: 'auto'},
-        class: function() {
-            return App.vm.isModalShown ? 'show' : '';
-        }()
-    }, [
-        m('.modal-dialog', [
-            m('.modal-content', [
-                m('.modal-header', [
-                    m('h4', 'Service stats')
-                ]),
-                m('.modal-body', [
-                    App.views.Stats()
-                ]),
-                m('.modal-footer', [
-                    m('button.btn.btn-outline-secondary', {
-                        onclick: function() {
-                            App.vm.isModalShown = false;
-                        }
-                    }, 'Close')
-                ])
-            ])
-        ])
+App.views.Tab = function(ref, name) {
+    return m('li.nav-item', [
+        m('a[href=javascript:void(0)].nav-link', {
+            class: function() {
+                return App.vm.currentTube == ref ? 'active' : '';
+            }(),
+            onclick: function() {
+                App.vm.currentTube = ref
+            }
+        }, name)
     ]);
 }
 
 App.views.TabsTube = function() {
     return m('ul.nav.nav-tabs', [
         App.vm.tubes.map(function(tube, index) {
-            return m('li.nav-item', [
-                m('a[href=javascript:void(0)].nav-link', {
-                    class: function() {
-                        return App.vm.currentTube == tube ? 'active' : '';
-                    }(),
-                    onclick: function() {
-                        App.vm.currentTube = tube;
-                        App.vm.updateInfo();
-                    }
-                }, tube)
-            ]);
+            return App.views.Tab(tube, tube)
         })
     ]);
 }
 
 App.views.PageHeader = function() {
-    return m('h2.heading', [
-        'Beanstalker ',
-        function() {
-            if (App.vm.isServiceListening) {
-                return m('a[href=#]', {onclick: function() {
-                    App.vm.currentModal = 'stats';
-                    App.vm.isModalShown = true;
-                }}, [
-                    m('small.text-success', 'Running')
-                ]);
-            }
-        }()
-    ]);
+    return [
+        m('h1.heading.mt-2', 'Beanstalker ')
+    ];
 }
 
 App.views.PeekJobs = function() {
@@ -261,7 +226,7 @@ App.views.Stats = function() {
 }
 
 App.views.StatsTube = function() {
-    return m('table.table.table-bordered.table-striped.table-sm', [
+    return m('table.table.table-bordered.table-striped', [
         m('tbody', function() {
             var statsTube = App.vm.statsTube;
             return Object.keys(statsTube).map(function(key, index) {
@@ -303,22 +268,40 @@ App.view = function() {
             App.views.PageHeader(),
             function() {
                 if (App.vm.isServiceListening) {
-                    return [
-                        App.views.TabsTube(),
-                        m('.row', [
-                            m('.col-sm-4', [
-                                m('h4.heading', 'Tube'),
-                                App.views.ButtonsTube(),
-                                App.views.StatsTube()
+                    if (App.vm.showStats) {
+                        return [
+                            m('.mb-2', [
+                                m('button.btn.btn-primary', {
+                                    onclick: function() {
+                                        App.vm.showStats = false;
+                                    }
+                                }, 'Close')
                             ]),
-                            m('.col-sm-8', [
-                                m('h4.heading', 'Peek'),
-                                App.views.PeekJobs()
+                            App.views.Stats()
+                        ];
+                    } else {
+                        return [
+                            App.views.TabsTube(),
+                            m('.row', [
+                                m('.col-sm-8', [
+                                    m('h4.heading', 'Peek'),
+                                    App.views.PeekJobs(),
+                                ]),
+                                m('.col-sm-4', [
+                                    m('button.btn.btn-outline-primary.btn-block.mb-2', {
+                                        onclick: function() {
+                                            App.vm.showStats = true;
+                                        }
+                                    }, 'Server stats'),
+                                    m('h4.heading', 'Tube'),
+                                    App.views.ButtonsTube(),
+                                    App.views.StatsTube(),
+                                ])
                             ])
-                        ])
-                    ];
+                        ];
+                    }
                 } else {
-                    return m('p', 'Unable to find the beanstalk daemon @ ' + App.vm.serverAddress);
+                    return m('p', 'Unable to find the beanstalk daemon.');
                 }
             }()
         ]),
