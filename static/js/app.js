@@ -2,77 +2,50 @@ var App = {};
 App.views = {};
 
 App.vm = {
-    currentTube: 'default',
-    isServiceListening: false,
-    isTubePaused: false,
-    jobBuried: null,
-    jobDelayed: null,
-    jobReady: null,
-    secondsUntilRefresh: 5,
-    serverAddress: null,
-    showStats: false,
-    stats: {},
-    statsTube: {},
-    tubes: [],
+    tube: 'default',
+    showServerStats: false,
+    service: {
+        isListening: false,
+        stats: {}
+    },
+    tubes: {},
     delete: function(job) {
         $.ajax({
             method: 'POST',
             url: 'cmd/delete',
-            data: {'job_id': job.stats.id},
-            success: function() {
-                App.vm.updateInfo();
-            }
+            data: {'job_id': job.stats.id}
         });
     },
     kick: function(job) {
         $.ajax({
             method: 'POST',
             url: 'cmd/kick',
-            data: {'job_id': job.stats.id},
-            success: function() {
-                App.vm.updateInfo();
-            }
+            data: {'job_id': job.stats.id}
         });
     },
     pause: function(duration) {
         $.ajax({
             method: 'POST',
             url: 'cmd/pause',
-            data: {'tube': App.vm.currentTube, 'duration': duration},
-            success: function() {
-                App.vm.updateInfo();
-            }
+            data: {'tube': App.vm.tube, 'duration': duration}
         });
+
+        App.vm.tubes[App.vm.tube].stats.pause = duration;
     },
     updateInfo: function() {
         m.request({
             url: 'api/info',
-            data: {'tube': App.vm.currentTube},
         }).then(function(result) {
-            App.vm.isServiceListening = result.isServiceListening;
-            App.vm.isTubePaused = result.statsTube.pause != 0;
-            App.vm.jobBuried = result.jobBuried;
-            App.vm.jobDelayed = result.jobDelayed;
-            App.vm.jobReady = result.jobReady;
-            App.vm.serverAddress = result.serverAddress;
-            App.vm.stats = result.stats;
-            App.vm.statsTube = result.statsTube;
+            App.vm.service = result.service;
             App.vm.tubes = result.tubes;
-
-            App.vm.secondsUtilRefresh = 5;
         });
     }
 };
 
 App.views.ButtonsTube = function() {
     return m('.mb-2', [
-        m('button.btn.btn-outline-secondary.mr-1', {onclick: function() {
-            App.vm.updateInfo();
-        }}, [
-            m('i.fas.fa-sync')
-        ]),
         function() {
-            if (App.vm.isTubePaused) {
+            if (App.vm.tubes[App.vm.tube].stats.pause > 0) {
                 return m('button.btn.btn-outline-secondary.mr-1', {onclick: function() {
                     App.vm.pause(0);
                 }}, [
@@ -83,7 +56,7 @@ App.views.ButtonsTube = function() {
         }(),
         m('button.btn.btn-outline-secondary.dropdown-toggle[type=button][data-toggle=dropdown]', [
             m('i.fas.fa-pause'),
-            ' Pause ',
+            ' Pause',
             m('span.caret')
         ]),
         m('.dropdown-menu', [
@@ -113,43 +86,17 @@ App.views.Job = function(job) {
     ];
 }
 
-App.views.Tab = function(ref, name) {
-    return m('li.nav-item', [
-        m('a[href=javascript:void(0)].nav-link', {
-            class: function() {
-                return App.vm.currentTube == ref ? 'active' : '';
-            }(),
-            onclick: function() {
-                App.vm.currentTube = ref
-            }
-        }, name)
-    ]);
-}
-
-App.views.TabsTube = function() {
-    return m('ul.nav.nav-tabs', [
-        App.vm.tubes.map(function(tube, index) {
-            return App.views.Tab(tube, tube)
-        })
-    ]);
-}
-
-App.views.PageHeader = function() {
-    return [
-        m('h1.heading.mt-2', 'Beanstalker ')
-    ];
-}
-
 App.views.PeekJobs = function() {
     return [
         m('.card.mb-2', [
             m('.card-header', 'Ready'),
             m('.card-body', [
                 function() {
-                    if (App.vm.jobReady) {
+                    var job = App.vm.tubes[App.vm.tube].ready;
+                    if (job) {
                         return [
-                            App.views.Job(App.vm.jobReady),
-                            App.views.ToolbarJob(App.vm.jobReady)
+                            App.views.Job(job),
+                            App.views.ToolbarJob(job)
                         ];
                     } else {
                         return 'No ready jobs.';
@@ -161,10 +108,11 @@ App.views.PeekJobs = function() {
             m('.card-header', 'Delayed'),
             m('.card-body', [
                 function() {
-                    if (App.vm.jobDelayed) {
+                    var job = App.vm.tubes[App.vm.tube].delayed;
+                    if (job) {
                         return [
-                            App.views.Job(App.vm.jobDelayed),
-                            App.views.ToolbarJobKick(App.vm.jobDelayed)
+                            App.views.Job(job),
+                            App.views.ToolbarJobKick(job)
                         ];
                     } else {
                         return 'No delayed jobs.';
@@ -184,10 +132,11 @@ App.views.PeekJobs = function() {
             }, 'Buried'),
             m('.card-body', [
                 function() {
-                    if (App.vm.jobBuried) {
+                    var job = App.vm.tubes[App.vm.tube].buried;
+                    if (job) {
                         return [
-                            App.views.Job(App.vm.jobBuried),
-                            App.views.ToolbarJobKick(App.vm.jobBuried)
+                            App.views.Job(job),
+                            App.views.ToolbarJobKick(job)
                         ];
                     } else {
                         return 'No buried jobs.';
@@ -222,11 +171,10 @@ App.views.StatsJob = function(job) {
 App.views.Stats = function() {
     return m('table.table.table-bordered.table-striped', [
         m('tbody', function() {
-            var stats = App.vm.stats;
-            return Object.keys(stats).map(function(key, index) {
+            return Object.keys(App.vm.service.stats).map(function(key, index) {
                 return m('tr', [
                     m('th', key),
-                    m('td', stats[key])
+                    m('td', App.vm.service.stats[key])
                 ]);
             });
         }())
@@ -236,15 +184,36 @@ App.views.Stats = function() {
 App.views.StatsTube = function() {
     return m('table.table.table-bordered.table-striped', [
         m('tbody', function() {
-            var statsTube = App.vm.statsTube;
-            return Object.keys(statsTube).map(function(key, index) {
+            return Object.keys(App.vm.tubes[App.vm.tube].stats).map(function(key, index) {
                 return m('tr', [
                     m('th', key),
-                    m('td', statsTube[key])
+                    m('td', App.vm.tubes[App.vm.tube].stats[key])
                 ]);
             });
         }())
     ]);
+}
+
+App.views.Tab = function(ref, name) {
+    return m('li.nav-item', [
+        m('a[href=javascript:void(0)].nav-link', {
+            class: function() {
+                return App.vm.tube == ref ? 'active' : '';
+            }(),
+            onclick: function() {
+                App.vm.tube = ref
+                App.vm.showServerStats = false
+            }
+        }, name)
+    ]);
+}
+
+App.views.TabsTube = function() {
+    return m('ul.nav.nav-tabs', function() {
+        return Object.keys(App.vm.tubes).map(function(tube, index) {
+            return App.views.Tab(tube, tube)
+        })
+    }());
 }
 
 App.views.ToolbarJob = function(job) {
@@ -273,58 +242,49 @@ App.views.ToolbarJobKick = function(job) {
 App.view = function() {
     return [
         m('.container', [
-            App.views.PageHeader(),
+            m('h1.heading.mt-2', 'Beanstalker '),
             function() {
-                if (App.vm.isServiceListening) {
-                    if (App.vm.showStats) {
-                        return [
-                            m('.mb-2', [
-                                m('button.btn.btn-primary', {
-                                    onclick: function() {
-                                        App.vm.showStats = false;
+                if (App.vm.service.isListening) {
+                    return [
+                        App.views.TabsTube(),
+                        m('.row', [
+                            m('.col-sm-4', [
+                                function() {
+                                    if (App.vm.showServerStats) {
+                                        return [
+                                            m('button.btn.btn-outline-primary.btn-block.mb-2', {
+                                                onclick: function() {
+                                                    App.vm.showServerStats = false;
+                                                }
+                                            }, 'Tube stats'),
+                                            m('h4.heading', 'Server'),
+                                            App.views.Stats()
+                                        ];
+                                    } else {
+                                        return [
+                                            m('button.btn.btn-outline-primary.btn-block.mb-2', {
+                                                onclick: function() {
+                                                    App.vm.showServerStats = true;
+                                                }
+                                            }, 'Server stats'),
+                                            m('h4.heading', 'Tube'),
+                                            App.views.ButtonsTube(),
+                                            App.views.StatsTube()
+                                        ];
                                     }
-                                }, 'Close')
+                                }(),
                             ]),
-                            App.views.Stats()
-                        ];
-                    } else {
-                        return [
-                            App.views.TabsTube(),
-                            m('.row', [
-                                m('.col-sm-8', [
-                                    m('h4.heading', 'Peek'),
-                                    App.views.PeekJobs(),
-                                ]),
-                                m('.col-sm-4', [
-                                    m('button.btn.btn-outline-primary.btn-block.mb-2', {
-                                        onclick: function() {
-                                            App.vm.showStats = true;
-                                        }
-                                    }, 'Server stats'),
-                                    m('h4.heading', 'Tube'),
-                                    App.views.ButtonsTube(),
-                                    App.views.StatsTube(),
-                                ])
+                            m('.col-sm-8', [
+                                m('h4.heading', 'Peek'),
+                                App.views.PeekJobs(),
                             ])
-                        ];
-                    }
+                        ])
+                    ];
                 } else {
                     return m('p', 'Unable to find the beanstalk daemon.');
                 }
             }()
-        ]),
-        function() {
-            var views = [];
-            if (App.vm.isModalShown) {
-                if (App.vm.currentModal == 'stats') {
-                    views.push(App.views.ModalStats());
-                }
-                views.push(m('.modal-backdrop.show', function() {
-
-                }()));
-            }
-            return views;
-        }()
+        ])
     ];
 };
 
@@ -332,10 +292,5 @@ m.mount(document.body, App);
 App.vm.updateInfo();
 
 setInterval(function() {
-    var seconds = App.vm.secondsUntilRefresh;
-    if (seconds == 0) {
-        App.vm.updateInfo();
-    } else {
-        App.vm.secondsUntilRefresh = seconds - 1;
-    }
-}, 1000);
+    App.vm.updateInfo();
+}, 5000);

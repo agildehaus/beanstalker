@@ -15,14 +15,35 @@ $container = $app->getContainer();
 
 $container['view'] = function($c) {
     $view = new \Slim\Views\Twig('templates/');
-    
+
     $basePath = rtrim(str_ireplace('index.php', '', $c['request']->getUri()->getBasePath()), '/');
     $view->addExtension(new \Slim\Views\TwigExtension($c['router'], $basePath));
-    
+
     return $view;
 };
 
 $pheanstalk = new \Pheanstalk\Pheanstalk($config['beanstalk_server']);
+
+function jobToDict($tube, $kind) {
+    global $pheanstalk;
+
+    try {
+        if ($kind == 'ready') {
+            $job = $pheanstalk->peekReady($tube);
+        } elseif ($kind == 'delayed') {
+            $job = $pheanstalk->peekDelayed($tube);
+        } elseif ($kind == 'buried') {
+            $job = $pheanstalk->peekBuried($tube);
+        } else {
+            return null;
+        }
+    } catch (\Pheanstalk\Exception\ServerException $e) {
+        return null;
+    }
+
+    $statsJob = $pheanstalk->statsJob($job);
+    return ['data' => $job->getData(), 'stats' => $statsJob];
+}
 
 $app->get('/', function($req, $res) {
     return $this->view->render($res, 'index.html', [
@@ -31,57 +52,24 @@ $app->get('/', function($req, $res) {
 });
 
 $app->get('/api/info', function($req, $res) use($pheanstalk, $config) {
-    $tube = $req->getParam('tube', 'default');
-                
-    try {
-        $isServiceListening = $pheanstalk->getConnection()->isServiceListening();
+    $isServiceListening = $pheanstalk->getConnection()->isServiceListening();
 
-        try {
-            $job = $pheanstalk->peekBuried($tube);
-            $statsJob = $pheanstalk->statsJob($job);
-            $jobBuried = ['data' => $job->getData(), 'stats' => $statsJob];
-        } catch (\Pheanstalk\Exception\ServerException $e) {
-            $jobBuried = null;
-        }
-        
-        try {
-            $job = $pheanstalk->peekDelayed($tube);
-            $statsJob = $pheanstalk->statsJob($job);
-            $jobDelayed = ['data' => $job->getData(), 'stats' => $statsJob];
-        } catch (\Pheanstalk\Exception\ServerException $e) {
-            $jobDelayed = null;
-        }
-        
-        try {
-            $job = $pheanstalk->peekReady($tube);
-            $statsJob = $pheanstalk->statsJob($job);
-            $jobReady = ['data' => $job->getData(), 'stats' => $statsJob];
-        } catch (\Pheanstalk\Exception\ServerException $e) {
-            $jobReady = null;
-        }
-        
-        $statsTube = $pheanstalk->statsTube($tube)->getArrayCopy();
-        $stats = $pheanstalk->stats()->getArrayCopy();
-        $tubes = $pheanstalk->listTubes();
-    } catch (\Pheanstalk\Exception\ConnectionException $e) {
-        $isServiceListening = false;
-        $jobBuried = null;
-        $jobDelayed = null;
-        $jobReady = null;
-        $statsTube = [];
-        $stats = [];
-        $tubes = [];
+    $service = [
+        'isListening' => $pheanstalk->getConnection()->isServiceListening(),
+        'stats' => $pheanstalk->stats()->getArrayCopy()
+    ];
+
+    $tubes = [];
+    foreach($pheanstalk->listTubes() as $tube) {
+        $tubes[$tube]['stats'] = $pheanstalk->statsTube($tube);
+        $tubes[$tube]['ready'] = jobToDict($tube, 'ready');
+        $tubes[$tube]['delayed'] = jobToDict($tube, 'delayed');
+        $tubes[$tube]['buried'] = jobToDict($tube, 'buried');
     }
-    
+
     $r = $res->withHeader('Content-Type', 'application/json');
     $r->write(json_encode([
-        'isServiceListening' => $isServiceListening,
-        'jobBuried' => $jobBuried,
-        'jobDelayed' => $jobDelayed,
-        'jobReady' => $jobReady,
-        'serverAddress' => $config['beanstalk_server'],
-        'statsTube' => $statsTube,
-        'stats' => $stats,
+        'service' => $service,
         'tubes' => $tubes
     ]));
     return $r;
@@ -89,13 +77,13 @@ $app->get('/api/info', function($req, $res) use($pheanstalk, $config) {
 
 $app->post('/cmd/delete', function($req, $res) use($pheanstalk) {
     $job_id = $req->getParam('job_id');
-    
+
     try {
         v::numeric()->setName('job_id')->check($job_id);
     } catch (ValidationExceptionInterface $e) {
         return $res->withStatus(400)->write($e->getMainMessage());
     }
-    
+
     try {
         $job = new \Pheanstalk\Job($job_id, []);
         $pheanstalk->delete($job);
@@ -106,13 +94,13 @@ $app->post('/cmd/delete', function($req, $res) use($pheanstalk) {
 
 $app->post('/cmd/kick', function($req, $res) use($pheanstalk) {
     $job_id = $req->getParam('job_id');
-    
+
     try {
         v::numeric()->setName('job_id')->check($job_id);
     } catch (ValidationExceptionInterface $e) {
         return $res->withStatus(400)->write($e->getMainMessage());
     }
-    
+
     try {
         $job = new \Pheanstalk\Job($job_id, []);
         $pheanstalk->kickJob($job);
@@ -121,10 +109,10 @@ $app->post('/cmd/kick', function($req, $res) use($pheanstalk) {
     }
 });
 
-$app->post('/cmd/pause', function($req, $res) use($pheanstalk) {   
+$app->post('/cmd/pause', function($req, $res) use($pheanstalk) {
     $tube = $req->getParam('tube', 'default');
     $duration = intval($req->getParam('duration', 60));
-     
+
     $pheanstalk->pauseTube($tube, $duration);
 });
 
