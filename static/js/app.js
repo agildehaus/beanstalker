@@ -63,27 +63,12 @@ App.views.ButtonsTube = function() {
                 ]);
             }
         }(),
-        m('button.btn.btn-outline-secondary.dropdown-toggle[type=button][data-toggle=dropdown]', [
+        m('button.btn.btn-outline-secondary[type=button]', {onclick: function() {
+            App.vm.pause(300);
+	}}, [
             m('i.fas.fa-pause'),
             ' Pause',
             m('span.caret')
-        ]),
-        m('.dropdown-menu', [
-            m('a[href=#].dropdown-item', {onclick: function() {
-                App.vm.pause(60);
-            }}, '1 minute'),
-            m('a[href=#].dropdown-item', {onclick: function() {
-                App.vm.pause(300);
-            }}, '5 minutes'),
-            m('a[href=#].dropdown-item', {onclick: function() {
-                App.vm.pause(600);
-            }}, '10 minutes'),
-            m('a[href=#].dropdown-item', {onclick: function() {
-                App.vm.pause(1800);
-            }}, '30 minutes'),
-            m('a[href=#].dropdown-item', {onclick: function() {
-                App.vm.pause(3600);
-            }}, '1 hour')
         ])
     ]);
 }
