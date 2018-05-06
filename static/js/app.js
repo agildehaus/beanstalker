@@ -10,27 +10,36 @@ App.vm = {
     },
     tubes: {},
     delete: function(job) {
-        $.ajax({
+        m.request({
             method: 'POST',
             url: 'cmd/delete',
             data: {'job_id': job.stats.id}
+        }).then(function(result) {
+            App.vm.service = result.service;
+            App.vm.tubes = result.tubes;
         });
     },
     kick: function(job) {
-        $.ajax({
+        m.request({
             method: 'POST',
             url: 'cmd/kick',
             data: {'job_id': job.stats.id}
+        }).then(function(result) {
+            App.vm.service = result.service;
+            App.vm.tubes = result.tubes;
         });
     },
     pause: function(duration) {
-        $.ajax({
+        App.vm.tubes[App.vm.tube].stats.pause = duration;
+
+        m.request({
             method: 'POST',
             url: 'cmd/pause',
             data: {'tube': App.vm.tube, 'duration': duration}
+        }).then(function(result) {
+            App.vm.service = result.service;
+            App.vm.tubes = result.tubes;
         });
-
-        App.vm.tubes[App.vm.tube].stats.pause = duration;
     },
     updateInfo: function() {
         m.request({

@@ -22,18 +22,16 @@ $container['view'] = function($c) {
     return $view;
 };
 
-$pheanstalk = new \Pheanstalk\Pheanstalk($config['beanstalk_server']);
+$container['pheanstalk'] = new \Pheanstalk\Pheanstalk($config['beanstalk_server']);
 
-function jobToDict($tube, $kind) {
-    global $pheanstalk;
-
+function jobToDict($app, $tube, $kind) {
     try {
         if ($kind == 'ready') {
-            $job = $pheanstalk->peekReady($tube);
+            $job = $app->pheanstalk->peekReady($tube);
         } elseif ($kind == 'delayed') {
-            $job = $pheanstalk->peekDelayed($tube);
+            $job = $app->pheanstalk->peekDelayed($tube);
         } elseif ($kind == 'buried') {
-            $job = $pheanstalk->peekBuried($tube);
+            $job = $app->pheanstalk->peekBuried($tube);
         } else {
             return null;
         }
@@ -41,30 +39,22 @@ function jobToDict($tube, $kind) {
         return null;
     }
 
-    $statsJob = $pheanstalk->statsJob($job);
+    $statsJob = $app->pheanstalk->statsJob($job);
     return ['data' => $job->getData(), 'stats' => $statsJob];
 }
 
-$app->get('/', function($req, $res) {
-    return $this->view->render($res, 'index.html', [
-        'currentTube' => 'default'
-    ]);
-});
-
-$app->get('/api/info', function($req, $res) use($pheanstalk, $config) {
-    $isServiceListening = $pheanstalk->getConnection()->isServiceListening();
-
+function writeServerState($app, $res) {
     $service = [
-        'isListening' => $pheanstalk->getConnection()->isServiceListening(),
-        'stats' => $pheanstalk->stats()->getArrayCopy()
+        'isListening' => $app->pheanstalk->getConnection()->isServiceListening(),
+        'stats' => $app->pheanstalk->stats()->getArrayCopy()
     ];
 
     $tubes = [];
-    foreach($pheanstalk->listTubes() as $tube) {
-        $tubes[$tube]['stats'] = $pheanstalk->statsTube($tube);
-        $tubes[$tube]['ready'] = jobToDict($tube, 'ready');
-        $tubes[$tube]['delayed'] = jobToDict($tube, 'delayed');
-        $tubes[$tube]['buried'] = jobToDict($tube, 'buried');
+    foreach($app->pheanstalk->listTubes() as $tube) {
+        $tubes[$tube]['stats'] = $app->pheanstalk->statsTube($tube);
+        $tubes[$tube]['ready'] = jobToDict($app, $tube, 'ready');
+        $tubes[$tube]['delayed'] = jobToDict($app, $tube, 'delayed');
+        $tubes[$tube]['buried'] = jobToDict($app, $tube, 'buried');
     }
 
     $r = $res->withHeader('Content-Type', 'application/json');
@@ -72,10 +62,19 @@ $app->get('/api/info', function($req, $res) use($pheanstalk, $config) {
         'service' => $service,
         'tubes' => $tubes
     ]));
+
     return $r;
+}
+
+$app->get('/', function($req, $res) {
+    return $this->view->render($res, 'index.html');
 });
 
-$app->post('/cmd/delete', function($req, $res) use($pheanstalk) {
+$app->get('/api/info', function($req, $res) {
+    return writeServerState($this, $res);
+});
+
+$app->post('/cmd/delete', function($req, $res) {
     $job_id = $req->getParam('job_id');
 
     try {
@@ -86,13 +85,15 @@ $app->post('/cmd/delete', function($req, $res) use($pheanstalk) {
 
     try {
         $job = new \Pheanstalk\Job($job_id, []);
-        $pheanstalk->delete($job);
+        $this->pheanstalk->delete($job);
     } catch (\Pheanstalk\Exception\ServerException $e) {
         return $res->withStatus(400)->write($e->getMessage());
     }
+
+    return writeServerState($this, $res);
 });
 
-$app->post('/cmd/kick', function($req, $res) use($pheanstalk) {
+$app->post('/cmd/kick', function($req, $res) {
     $job_id = $req->getParam('job_id');
 
     try {
@@ -103,17 +104,21 @@ $app->post('/cmd/kick', function($req, $res) use($pheanstalk) {
 
     try {
         $job = new \Pheanstalk\Job($job_id, []);
-        $pheanstalk->kickJob($job);
+        $this->pheanstalk->kickJob($job);
     } catch (\Pheanstalk\Exception\ServerException $e) {
         return $res->withStatus(400)->write($e->getMessage());
     }
+
+    return writeServerState($this, $res);
 });
 
-$app->post('/cmd/pause', function($req, $res) use($pheanstalk) {
+$app->post('/cmd/pause', function($req, $res) {
     $tube = $req->getParam('tube', 'default');
     $duration = intval($req->getParam('duration', 60));
 
-    $pheanstalk->pauseTube($tube, $duration);
+    $this->pheanstalk->pauseTube($tube, $duration);
+
+    return writeServerState($this, $res);
 });
 
 $app->run();
